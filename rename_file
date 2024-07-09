@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# Script to rename a file
+
+# Need at least two parameters
+if [[ -z "$1" ]] || [[ -z "$2" ]]
+then
+	echo "Error renaming file: need both filepath and new filename or directory"
+	exit 1
+fi
+filepath="$1"
+
+# Check for existence of original file
+if [[ -f "${filepath}" ]]
+then
+	true
+else
+	echo "Error renaming file: ${filepath} does not exist"
+	exit 1
+fi
+
+# Parse filename
+filename=$(basename -- "$filepath")
+directory=$(dirname -- "$filepath")
+extension="${filename##*.}"
+filename="${filename%.*}"
+
+# Check if second parameter is a directory
+if [[ -d "$2" ]]
+then
+	directory="$2"
+else
+	filename="$2"
+	
+	# Check if third parameter is a directory (if it exists)
+	if [[ ! -z "$3" ]]
+	then
+		if [[ -d "$3" ]]
+		then
+			directory="$3"
+		else
+			echo "Error renaming file: Third parameter needs to be a directory"
+			exit 1
+		fi
+	fi
+fi
+
+# Validate directory
+if [[ -d "$directory" ]]
+then
+	if [[ "$directory" != "/" ]]
+	then
+		directory=${directory%/}
+	fi
+else
+	echo "Error renaming file: directory does not exist"
+	exit 1
+fi
+
+# Use lowercase version of extension
+extension=${extension,,}
+
+# Shorten file extension if necessary
+if [[ $extension == "jpeg" ]]
+then
+	extension="jpg"
+fi
+if [[ $extension == "mpeg4" ]]
+then
+	extension="mp4"
+fi
+# Compile new path
+new_filepath="${directory}/${filename}.${extension}"
+
+# Add suffix if new filename already exists
+let counter=0
+while [[ counter -lt 99 ]] && [[ -f "$new_filepath" ]] && [[ "$filepath" != "$new_filepath" ]]
+do
+	let counter=counter+1
+	suffix="00${counter}"
+	suffix="${suffix: -2}"
+	new_filepath="${directory}/${filename}_${suffix}.${extension}"
+done
+
+# Provide output, move file, and exit
+if [[ "$filepath" == "$new_filepath" ]]
+then
+	echo "No rename is necessary, new filepath matches old one"
+	exit 2
+elif [[ $counter -le 99 ]]
+then
+	mv "$filepath" "$new_filepath"
+	if [[ $? == 0 ]]
+	then
+		echo "$new_filepath"
+		exit 0
+	else
+		exit 1
+	fi
+else
+	echo "Error renaming file: Limit reached on counter"
+	exit 1
+fi

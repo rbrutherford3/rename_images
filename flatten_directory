@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Script to move all directories in a directory structure to
+# the root, renaming as necessary, and removing all subdirectories
+
+# Need root path
+if [[ -z "$1" ]]
+then
+	echo "No path provided"
+	exit 1
+fi
+root_path="$1"
+
+# Validate root path
+if [[ -d "$root_path" ]]
+then
+	if [[ "$root_path" != "/" ]]
+	then
+		root_path=${root_path%/}
+	fi
+else
+	echo "Error renaming file: root directory does not exist"
+	exit 1
+fi
+
+# Get directory of this script for referring to other scripts
+script_directory=$(dirname -- "$(readlink -f -- "$BASH_SOURCE")")
+
+# Set counts to zero
+let processed_count=0
+let renamed_count=0
+
+# Enable globstar for looping through files
+shopt -s globstar
+
+# Define external file paths
+rename_file="${script_directory}/rename_file"
+
+# Recursively loop through all files stemming from root
+for d in "${root_path}"*/*/
+do
+	if [[ -d "${d}" ]]
+	then
+		for f in "${d}"**
+		do
+			if [[ -f "${f}" ]]
+			then
+				# Increase count
+				let processed_count++
+						
+				# Move file and get output
+				file_rename_output="$(${rename_file} "${f}" "${root_path}")"
+				exit_code="$?"
+				
+				# Output
+				echo "$f"
+				echo "$file_rename_output"
+				echo ""
+				
+				# Increase count if file renamed
+				if [[ "$exit_code" == "0" ]]
+				then
+					let renamed_count++
+				fi	
+			fi
+		done
+	fi
+done
+
+# Delete empty subdirectories
+find "${root_path}" -type d -empty -delete
+
+# Final output
+echo "$processed_count files processed"
+echo "$renamed_count files renamed"
+echo ""
+
+exit 0
+

@@ -1,0 +1,181 @@
+#!/bin/bash
+
+# Script to change filenames of images according to their
+# the date in their filename
+# This is called "rescue" because these particular date-time
+# numbers are missing components and are tricky to parse
+# It is only necessary in situations of leftover files from
+# running rename_images that are "broken" and require extra
+# care. You MUST run rename_images first or risk overwriting
+# Accurate date information
+
+# Requires exiftools
+
+# Need root path
+if [[ -z "$1" ]]
+then
+	echo "No path provided"
+	exit 1
+fi
+root_path="$1"
+
+# Validate root path
+if [[ -d "$root_path" ]]
+then
+	if [[ "$root_path" != "/" ]]
+	then
+		root_path=${root_path%/}
+	fi
+else
+	echo "Error renaming file: root directory does not exist"
+	exit 1
+fi
+
+# Get directory of this script for referring to other scripts
+script_directory=$(dirname -- "$(readlink -f -- "$BASH_SOURCE")")
+
+# Set counts to zero
+let processed_count=0
+let renamed_count=0
+let exif_changed_count=0
+
+# Enable globstar for looping through files
+shopt -s globstar
+
+# Define external file paths
+exiftool_args="${script_directory}/rescue_images.args"
+dates_file="${script_directory}/rescue_images_dates.tsv"
+rename_file="${script_directory}/rename_file"
+
+# Re-create exiftool argument file (for assigning new creation date)
+if [[ -f "$exiftool_args" ]]
+then
+	rm "$exiftool_args"
+fi
+touch "$exiftool_args"
+
+# Generate table of filenames and their creation dates
+exiftool -r -m -T -filepath -DateTimeOriginal "${root_path}" > "${dates_file}"
+
+# Loop through files gathered from exiftool file
+while IFS=$'\t' read -r f create_date
+do
+	# Increment counter
+	let processed_count++
+	
+	# Parse filename
+	filename=$(basename -- "$f")
+	extension="${filename##*.}"
+	filename="${filename%.*}"
+	
+	# Assign prefix based on whether it's an image, video, or screenshot
+	prefix="IMG"
+	if [[ "${extension,,}" == "mp4" ]] || [[ "${extension,,}" == "mpeg4" ]]
+	then
+		prefix="VID"
+	fi
+	if [[ "${filename:0:2}" == "SS" ]] || [[ "${filename:0:10}" == "Screenshot" ]]
+	then
+		prefix="SS"
+	fi
+	
+	# Clear variables
+	nums=""
+	formatted_date_time=""
+	new_filename=""
+	year=""
+	date_found=false
+	exif_date_changed=false
+	
+	# Initialize date digits
+	nums="${filename//[!0-9]/}" # Get numbers from filename
+	let len_nums=${#nums}
+	current_year="$(date +%Y)"
+	year="${current_year}"
+	month="${nums:2:2}"
+	day="${nums:4:2}"
+	hour="00"
+	minute="00"
+	second="00"
+	
+	# Parse numbers in filename (tricky, missing components)
+	if [[ $filename =~ ^[^0-9]*200(2|5|6|7)(.*)$ ]]
+	then
+		date_found=true
+		# Parse date based on number of numerical digits in filename
+		if [[ $filename =~ ^[^0-9]*[0-9]{8}_(.*)$ ]]
+		then
+			hour="${nums:8:2}"
+			minute="${nums:10:2}"
+			second="${nums:12:2}"
+		elif [[ $filename =~ ^[^0-9]*[0-9]{6}_(.*)$ ]]
+		then
+			hour="${nums:6:2}"
+			minute="${nums:8:2}"
+			second="${nums:10:2}"
+		fi
+		
+		# Define new file name based on date numbers
+		new_filename="${prefix}_${year}${month}${day}_${hour}${minute}${second}"
+		# Format date for exif data
+		formatted_date_time="${year}:${month}:${day} ${hour}:${minute}:${second}"
+		# Rename file and get output
+		file_rename_output="$(${rename_file} "${f}" "${new_filename}")"
+		exit_code="$?"
+		
+		# Define filename based on results of file rename
+		if [[ "$exit_code" == "0" ]]
+		then
+			current_f="$file_rename_output"
+			let renamed_count++
+		elif [[ "$exit_code" == "2" ]]
+		then
+			current_f="$f"
+		fi
+	
+		# Update exif creation date if with new date from filename
+		if [[ "$exit_code" != 1 ]]
+		then
+			echo "-m" >> "$exiftool_args"
+			echo "-overwrite_original" >> "$exiftool_args"
+			echo "-dateTimeOriginal=\"${formatted_date_time}\"" >> "$exiftool_args"
+			echo "$current_f" >> "$exiftool_args"
+			echo "-execute" >> "$exiftool_args"
+			echo "" >> "$exiftool_args"
+			exif_date_changed=true
+			let exif_changed_count++
+		fi
+	fi
+	
+	# Output
+	echo "$f"
+	if [[ "$date_found" == true ]]
+	then
+		echo "${formatted_date_time}"
+		echo "$file_rename_output"
+	else
+		echo "No irregular date found in file"
+	fi
+		
+	if [[ "$exif_date_changed" == true ]]
+	then
+		echo "exif date updated"
+	else
+		echo "No exif date update"
+	fi
+	echo ""
+done < "${dates_file}"
+
+# Change all exif data dates at once
+if [[ ${exif_changed_count#0} > 0 ]]
+then
+	exiftool -@ "$exiftool_args"
+fi
+
+# Final output
+echo "$processed_count files processed"
+echo "$renamed_count files renamed"
+echo "$exif_changed_count dates changed in EXIF data"
+echo ""
+
+exit 0

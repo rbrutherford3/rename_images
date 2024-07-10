@@ -36,7 +36,11 @@ let exif_changed_count=0
 # Define external file paths
 exiftool_args="${script_directory}/rename_images.args"
 dates_file="${script_directory}/rename_images_dates.tsv"
+results="${script_directory}/rename_images_results.tsv"
 rename_file="${script_directory}/rename_file"
+
+# Create or re-create tabulated results file
+echo -e "Original filepath\tDate\tRename output" > "$results"
 
 # Create or reset exiftool args file
 if [[ -f "$exiftool_args" ]]
@@ -73,6 +77,7 @@ do
 	date_found=false
 	exif_date_found=false
 	exif_date_changed=false
+	file_rename_output=""
 	formatted_date_time=""
 	#date_string=""
 	new_filename=""
@@ -235,6 +240,9 @@ do
 		echo "No exif date update"
 	fi
 	echo ""
+	
+	# Tabulate results in an output file
+	echo -e "${f}\t${formatted_date_time}\t${file_rename_output}" >> "${results}"
 done < "${dates_file}"
 
 # Change all exif data dates at once

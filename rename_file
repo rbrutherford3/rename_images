@@ -11,19 +11,24 @@ fi
 filepath="$1"
 
 # Check for existence of original file
-if [[ -f "${filepath}" ]]
+if [[ ! -f "${filepath}" ]]
 then
-	true
-else
 	echo "Error renaming file: ${filepath} does not exist"
 	exit 1
 fi
 
 # Parse filename
-filename=$(basename -- "$filepath")
 directory=$(dirname -- "$filepath")
-extension="${filename##*.}"
-filename="${filename%.*}"
+filename_with_extension=$(basename -- "$filepath")
+filename="${filename_with_extension%.*}"
+if [[ "$filename" == "$filename_with_extension" ]]
+then
+	extension_separator=""
+	extension=""
+else
+	extension_separator="."
+	extension="${filename_with_extension##*.}"
+fi
 
 # Check if second parameter is a directory
 if [[ -d "$2" ]]
@@ -70,7 +75,7 @@ then
 	extension="mp4"
 fi
 # Compile new path
-new_filepath="${directory}/${filename}.${extension}"
+new_filepath="${directory}/${filename}${extension_separator}${extension}"
 
 # Add suffix if new filename already exists
 let counter=0
@@ -79,7 +84,7 @@ do
 	let counter=counter+1
 	suffix="00${counter}"
 	suffix="${suffix: -2}"
-	new_filepath="${directory}/${filename}_${suffix}.${extension}"
+	new_filepath="${directory}/${filename}_${suffix}${extension_separator}${extension}"
 done
 
 # Provide output, move file, and exit

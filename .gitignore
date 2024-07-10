@@ -2,3 +2,4 @@
 *.tsv
 *.args
 switch_image_extension
+test/

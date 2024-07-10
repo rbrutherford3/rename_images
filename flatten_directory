@@ -43,33 +43,27 @@ echo "Moving individual file results:"
 echo ""
 
 # Recursively loop through all files stemming from root
-for d in "${root_path}"*/*/
+for f in "${root_path}"/**/*
 do
-	if [[ -d "${d}" ]]
+	if [[ -f "$f" ]]
 	then
-		for f in "${d}"**
-		do
-			if [[ -f "${f}" ]]
-			then
-				# Increase count
-				let processed_count++
-						
-				# Move file and get output
-				file_rename_output="$(${rename_file} "${f}" "${root_path}")"
-				exit_code="$?"
+		# Increase count
+		let processed_count++
 				
-				# Output
-				echo "$f"
-				echo "$file_rename_output"
-				echo ""
-				
-				# Increase count if file renamed
-				if [[ "$exit_code" == "0" ]]
-				then
-					let renamed_count++
-				fi	
-			fi
-		done
+		# Move file and get output
+		file_rename_output="$(${rename_file} "${f}" "${root_path}")"
+		exit_code="$?"
+		
+		# Output
+		echo "$f"
+		echo "$file_rename_output"
+		echo ""
+		
+		# Increase count if file renamed
+		if [[ "$exit_code" == "0" ]]
+		then
+			let renamed_count++
+		fi
 	fi
 done
 

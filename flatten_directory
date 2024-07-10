@@ -36,6 +36,12 @@ shopt -s globstar
 # Define external file paths
 rename_file="${script_directory}/rename_file"
 
+# Output header
+echo "FLATTENING DIRECTORY"
+echo ""
+echo "Moving individual file results:"
+echo ""
+
 # Recursively loop through all files stemming from root
 for d in "${root_path}"*/*/
 do
@@ -77,10 +83,9 @@ echo "$deleted_directories_output"
 echo ""
 
 # Final output
+echo "Final count:"
 echo "$processed_count files processed"
-echo "$renamed_count files renamed"
+echo "$renamed_count files moved"
 echo "$deleted_directories_count directories deleted"
-echo ""
 
 exit 0
-

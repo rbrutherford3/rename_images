@@ -52,6 +52,12 @@ touch "$exiftool_args"
 # Generate table of filenames and their creation dates
 exiftool -r -m -T -filepath -DateTimeOriginal "${root_path}" > "${dates_file}"
 
+# Output header
+echo "RENAMING IMAGES"
+echo ""
+echo "Processing individual image file results:"
+echo ""
+
 # Loop through files gathered from exiftool file
 while IFS=$'\t' read -r f create_date
 do
@@ -79,7 +85,6 @@ do
 	exif_date_changed=false
 	file_rename_output=""
 	formatted_date_time=""
-	#date_string=""
 	new_filename=""
 	year=""
 	
@@ -246,15 +251,17 @@ do
 done < "${dates_file}"
 
 # Change all exif data dates at once
+echo "Results of ExifTool operation:"
 if [[ ${exif_changed_count#0} > 0 ]]
 then
 	exiftool -@ "$exiftool_args"
 fi
+echo ""
 
 # Final output
+echo "Final count:"
 echo "$processed_count files processed"
 echo "$renamed_count files renamed"
 echo "$exif_changed_count dates changed in EXIF data"
-echo ""
 
 exit 0

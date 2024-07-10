@@ -67,12 +67,19 @@ do
 	fi
 done
 
-# Delete empty subdirectories
-find "${root_path}" -type d -empty -delete
+# Delete empty subdirectories and store results
+deleted_directories_output="$(find "${root_path}" -type d -empty -delete -print)"
+deleted_directories_count="$(wc -l <<< "$deleted_directories_output")"
+
+# Output result of deleting directories
+echo "Deleted directories:"
+echo "$deleted_directories_output"
+echo ""
 
 # Final output
 echo "$processed_count files processed"
 echo "$renamed_count files renamed"
+echo "$deleted_directories_count directories deleted"
 echo ""
 
 exit 0
